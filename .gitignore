@@ -28,3 +28,9 @@ Museo-mobile/
 
 # Uploads
 uploads/
+
+# Environment variables
+.env
+.env.backup
+.env.local
+.env.*.local
