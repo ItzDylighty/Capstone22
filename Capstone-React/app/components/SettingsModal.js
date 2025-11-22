@@ -1,15 +1,5 @@
 import React from "react";
-import {
-  Modal,
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-} from "react-native";
+import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Image, } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 

@@ -1,18 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  Modal,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  Dimensions,
-  FlatList,
-  ActivityIndicator,
-} from 'react-native';
+import { StyleSheet, View, Text, Modal, ScrollView, Image, TouchableOpacity, TextInput, Alert, Dimensions, FlatList, ActivityIndicator, } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../supabase/supabaseClient';
 import { useUser } from '../contexts/UserContext';

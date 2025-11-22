@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  ScrollView,
-} from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback, ScrollView,} from 'react-native';
 
 export default function PreferenceModal({
   interestsModalVisible,

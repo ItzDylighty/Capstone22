@@ -1,16 +1,5 @@
 import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Keyboard,
-} from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TextInput, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CommentModal({

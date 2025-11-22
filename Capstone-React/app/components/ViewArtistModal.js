@@ -1,20 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  KeyboardAvoidingView,
-  TouchableWithoutFeedback,
-  Keyboard,
-  Platform,
-  FlatList,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import {Modal,View,Text,Image,TouchableOpacity,ScrollView,TextInput,KeyboardAvoidingView,TouchableWithoutFeedback,Keyboard,Platform,FlatList,ActivityIndicator,Alert, } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import CommentModal from './CommentModal';

@@ -93,7 +93,10 @@ const MarketplaceScreen = () => {
         const sellerRes = await fetch(`${API_BASE}/marketplace/seller/status`, {
           method: 'GET',
           credentials: 'include',
-          headers: { Cookie: `access_token=${at}; refresh_token=${rt}` },
+          headers: { 
+            'Authorization': `Bearer ${at}`,
+            'Content-Type': 'application/json'
+          },
         });
         if (sellerRes.ok) {
           const sellerJson = await sellerRes.json();
@@ -109,7 +112,10 @@ const MarketplaceScreen = () => {
       const response = await fetch(`${API_BASE}/marketplace/items`, {
         method: 'GET',
         credentials: 'include',
-        headers: { Cookie: `access_token=${at}; refresh_token=${rt}` },
+        headers: { 
+          'Authorization': `Bearer ${at}`,
+          'Content-Type': 'application/json'
+        },
       });
 
       if (response.ok) {
@@ -128,7 +134,10 @@ const MarketplaceScreen = () => {
           const aRes = await fetch(`${API_BASE}/auctions?status=active&limit=100`, {
             method: 'GET',
             credentials: 'include',
-            headers: { Cookie: `access_token=${at}; refresh_token=${rt}` },
+            headers: { 
+              'Authorization': `Bearer ${at}`,
+              'Content-Type': 'application/json'
+            },
           });
           
           if (aRes.ok) {

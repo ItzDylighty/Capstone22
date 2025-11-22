@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, 
-  ActivityIndicator, RefreshControl, Modal, TextInput, Image, Alert, 
-  StatusBar, KeyboardAvoidingView, Platform, BackHandler 
-} from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Modal, TextInput, Image, Alert, StatusBar, KeyboardAvoidingView, Platform, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUser } from '../contexts/UserContext';
@@ -17,7 +13,23 @@ import EditProductModal from '../components/EditProductModal';
 import EditPriceScheduleAuction from '../components/EditPriceScheduleAuction';
 import AuctionOptionModal from '../components/AuctionOptionModal.js';
 import AndroidFooterSpacer from '../components/Footer';
+import PaymentMethodModal from '../components/PaymentMethodModal';
 const API_BASE = "http://192.168.18.79:3000/api";
+
+// Helper functions for masking payment details
+const maskPhoneNumber = (phone) => {
+  if (!phone) return '••••';
+  const digits = String(phone).replace(/\D/g, '');
+  if (digits.length <= 4) return digits;
+  return `${digits.slice(0, digits.length - 4).replace(/\d/g, '•')}${digits.slice(-4)}`;
+};
+
+const maskAccountNumber = (account) => {
+  if (!account) return '••••';
+  const digits = String(account).replace(/\s/g, '');
+  if (digits.length <= 4) return digits;
+  return `${'•'.repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
+};
 
 export default function SellerDashboardScreen() {
   const router = useRouter();
@@ -152,6 +164,9 @@ export default function SellerDashboardScreen() {
   // Edit Auction Modal state
   const [editAuctionModalOpen, setEditAuctionModalOpen] = useState(false);
   const [selectedAuction, setSelectedAuction] = useState(null);
+
+  // Payment Method Modal state
+  const [paymentMethodModalOpen, setPaymentMethodModalOpen] = useState(false);
 
   // Fetch payout balance
   const fetchPayoutBalance = async () => {
@@ -1234,7 +1249,6 @@ const handleDeleteProduct = (product) => {
     }, [router])
   );
 
-
   return (
       <SafeAreaView style={styles.safeArea}>
         <View style={[styles.header, { paddingTop: insets.top, height: insets.top + 56 }]}>
@@ -1610,15 +1624,25 @@ const handleDeleteProduct = (product) => {
                   <Text style={styles.settingsLabel}>Payment Method</Text>
                   {paymentMethod.method ? (
                     <>
-                      <Text style={styles.settingsValue}>{paymentMethod.method}</Text>
-                      <TouchableOpacity style={styles.settingsButton}>
+                      <Text style={styles.settingsValue}>
+                        {paymentMethod.method === 'gcash' && `GCash (${maskPhoneNumber(paymentMethod.gcashNumber)})`}
+                        {paymentMethod.method === 'maya' && `Maya (${maskPhoneNumber(paymentMethod.mayaNumber)})`}
+                        {paymentMethod.method === 'bank' && `${paymentMethod.bankName} (${maskAccountNumber(paymentMethod.bankAccountNumber)})`}
+                      </Text>
+                      <TouchableOpacity 
+                        style={styles.settingsButton}
+                        onPress={() => setPaymentMethodModalOpen(true)}
+                      >
                         <Text style={styles.settingsButtonText}>Update</Text>
                       </TouchableOpacity>
                     </>
                   ) : (
                     <>
                       <Text style={styles.settingsValue}>No payment method set</Text>
-                      <TouchableOpacity style={styles.settingsButton}>
+                      <TouchableOpacity 
+                        style={styles.settingsButton}
+                        onPress={() => setPaymentMethodModalOpen(true)}
+                      >
                         <Text style={styles.settingsButtonText}>Add Payment Method</Text>
                       </TouchableOpacity>
                     </>
@@ -2128,6 +2152,25 @@ const handleDeleteProduct = (product) => {
         onResume={resumeAuction}
         onCancel={cancelAuction}
       />
+      
+      {/* Payment Method Modal */}
+      <PaymentMethodModal
+        visible={paymentMethodModalOpen}
+        onClose={() => setPaymentMethodModalOpen(false)}
+        onSave={(data) => {
+          setPaymentMethod({
+            method: data.paymentMethod,
+            gcashNumber: data.gcashNumber || null,
+            mayaNumber: data.mayaNumber || null,
+            bankName: data.bankName || null,
+            bankAccountName: data.bankAccountName || null,
+            bankAccountNumber: data.bankAccountNumber || null
+          });
+          fetchPayoutBalance();
+        }}
+        currentMethod={paymentMethod}
+      />
+      
         <AndroidFooterSpacer />
     </SafeAreaView>
 
@@ -2265,11 +2308,35 @@ const PayoutsTab = ({ payoutBalance, paymentMethod, stats, onWithdraw, router })
   return (
     <View style={styles.payoutsContainer}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Current Payment Method */}
+        {paymentMethod.method && (
+          <View style={styles.currentPaymentCard}>
+            <Text style={styles.currentPaymentLabel}>Payment Method</Text>
+            <View style={styles.currentPaymentContent}>
+              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+              <Text style={styles.currentPaymentText}>
+                {paymentMethod.method === 'gcash' && `GCash (${maskPhoneNumber(paymentMethod.gcashNumber)})`}
+                {paymentMethod.method === 'maya' && `Maya (${maskPhoneNumber(paymentMethod.mayaNumber)})`}
+                {paymentMethod.method === 'bank' && `${paymentMethod.bankName} (${maskAccountNumber(paymentMethod.bankAccountNumber)})`}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Balance Card */}
         <View style={styles.balanceCard}>
           <View style={styles.balanceHeader}>
             <Ionicons name="wallet" size={20} color="#A68C7B" style={{marginRight: 8}} />
             <Text style={styles.balanceTitle}>Available Balance</Text>
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={() => {
+                // Trigger refresh of payout balance
+                fetchPayoutBalance();
+              }}
+            >
+              <Ionicons name="refresh" size={18} color="#A68C7B" />
+            </TouchableOpacity>
           </View>
           <Text style={styles.balanceAmount}>₱{payoutBalance.available.toLocaleString()}</Text>
           {payoutBalance.pending > 0 && (
@@ -4504,6 +4571,35 @@ overviewPeriodTextActive: {
     padding: 16,
   },
   
+  // Current Payment Method Card
+  currentPaymentCard: {
+    backgroundColor: '#F0F8F4',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  currentPaymentLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  currentPaymentContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  currentPaymentText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2E7D32',
+  },
+  
   balanceCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -4520,12 +4616,22 @@ overviewPeriodTextActive: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    justifyContent: 'space-between',
   },
   
   balanceTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+    flex: 1,
+  },
+  
+  refreshButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   
   balanceAmount: {

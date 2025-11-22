@@ -1,13 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-} from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ViewBidsModal from './ViewBidsModal';
 

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import ReturnRequestModal from '../components/ReturnRequestModal';
 import ReturnDetailsModal from '../components/ReturnDetailsModal';
+import OrderDetailsModalSimple from '../components/OrderDetailsModalSimple';
 import AndroidFooterSpacer from '../components/Footer';
 const API_BASE = "http://192.168.18.79:3000/api";
 
@@ -20,6 +21,7 @@ function MyOrdersScreen() {
   const [activeTab, setActiveTab] = useState('all'); // Default to "All"
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showSimpleDetailsModal, setShowSimpleDetailsModal] = useState(false);
   
   // Return/Refund system states
   const [buyerReturns, setBuyerReturns] = useState([]);
@@ -136,7 +138,12 @@ function MyOrdersScreen() {
 
       if (response.ok && result.success) {
         setSelectedOrder(result.data);
-        setShowDetailsModal(true);
+        // Use simple modal for non-pending payment orders
+        if (result.data.paymentStatus === 'pending' && result.data.status !== 'cancelled') {
+          setShowDetailsModal(true);
+        } else {
+          setShowSimpleDetailsModal(true);
+        }
       }
     } catch (error) {
       console.error('Error fetching order details:', error);
@@ -483,6 +490,7 @@ function MyOrdersScreen() {
     useCallback(() => {
       return () => {
         setShowDetailsModal(false);
+        setShowSimpleDetailsModal(false);
         setShowReturnModal(false);
         setShowReturnDetails(false);
       };
@@ -649,12 +657,23 @@ function MyOrdersScreen() {
         </>
       )}
 
-      {/* Order Details Modal */}
+      {/* Order Details Modal - For Pending Payment */}
       {selectedOrder && (
         <OrderDetailsModal
           visible={showDetailsModal}
           order={selectedOrder}
           onClose={() => setShowDetailsModal(false)}
+          onCancel={handleCancelOrder}
+          onMarkDelivered={handleMarkAsDelivered}
+        />
+      )}
+
+      {/* Simple Order Details Modal - For Other Orders */}
+      {selectedOrder && (
+        <OrderDetailsModalSimple
+          visible={showSimpleDetailsModal}
+          order={selectedOrder}
+          onClose={() => setShowSimpleDetailsModal(false)}
           onCancel={handleCancelOrder}
           onMarkDelivered={handleMarkAsDelivered}
         />
@@ -806,15 +825,25 @@ const OrderCard = ({ order, onViewDetails, onPayNow, onCheckPayment, onCancel, o
       </View>
 
       {/* Actions */}
-      <View style={styles.orderActions}>
-        <TouchableOpacity
-          style={[styles.actionBtnSecondary, order.status === 'shipped' ? styles.actionBtnSmaller : null]}
-          onPress={() => onViewDetails(order.orderId)}
-        >
-          <Text style={styles.actionBtnSecondaryText}>View Details</Text>
-        </TouchableOpacity>
+      {order.paymentStatus === 'pending' && order.status !== 'cancelled' ? (
+        // Pending Payment Layout - Column with multiple buttons
+        <View style={styles.orderActions}>
+          <View style={styles.leftActionsColumn}>
+            <TouchableOpacity
+              style={styles.actionBtnSecondary}
+              onPress={() => onViewDetails(order.orderId)}
+            >
+              <Text style={styles.actionBtnSecondaryText}>View Details</Text>
+            </TouchableOpacity>
 
-        {order.paymentStatus === 'pending' && order.status !== 'cancelled' && (
+            <TouchableOpacity
+              style={styles.actionBtnInfoCompact}
+              onPress={() => onCheckPayment(order.orderId)}
+            >
+              <Text style={styles.actionBtnInfoTextCompact}>Check Payment</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.pendingPaymentActions}>
             {/* Primary Action Row */}
             <View style={styles.primaryActionRow}>
@@ -830,12 +859,6 @@ const OrderCard = ({ order, onViewDetails, onPayNow, onCheckPayment, onCancel, o
             {/* Secondary Actions Row */}
             <View style={styles.secondaryActionRow}>
               <TouchableOpacity
-                style={styles.actionBtnInfoCompact}
-                onPress={() => onCheckPayment(order.orderId)}
-              >
-                <Text style={styles.actionBtnInfoTextCompact}>Check Payment</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
                 style={styles.actionBtnDangerCompact}
                 onPress={() => onCancel(order.orderId)}
               >
@@ -843,43 +866,53 @@ const OrderCard = ({ order, onViewDetails, onPayNow, onCheckPayment, onCancel, o
               </TouchableOpacity>
             </View>
           </View>
-        )}
-
-        {order.status === 'shipped' && (
+        </View>
+      ) : (
+        // Other Orders Layout - Centered View Details button
+        <View style={styles.orderActionsCentered}>
           <TouchableOpacity
-            style={styles.actionBtnSuccess}
-            onPress={() => onMarkDelivered(order.orderId)}
+            style={styles.actionBtnSecondaryFull}
+            onPress={() => onViewDetails(order.orderId)}
           >
-            <Text style={styles.actionBtnSuccessText}>Mark as Received</Text>
+            <Text style={styles.actionBtnSecondaryText}>View Details</Text>
           </TouchableOpacity>
-        )}
 
-        {order.status === 'delivered' && (
-          (() => {
-            const existing = getReturnByOrder(order.orderId);
-            if (existing) {
-              // Show "View Return" for any existing return (pending, approved, rejected, etc.)
+          {order.status === 'shipped' && (
+            <TouchableOpacity
+              style={styles.actionBtnSuccess}
+              onPress={() => onMarkDelivered(order.orderId)}
+            >
+              <Text style={styles.actionBtnSuccessText}>Mark as Received</Text>
+            </TouchableOpacity>
+          )}
+
+          {order.status === 'delivered' && (
+            (() => {
+              const existing = getReturnByOrder(order.orderId);
+              if (existing) {
+                // Show "View Return" for any existing return (pending, approved, rejected, etc.)
+                return (
+                  <TouchableOpacity
+                    style={styles.actionBtnWarning}
+                    onPress={() => onViewReturn(existing.returnId)}
+                  >
+                    <Text style={styles.actionBtnWarningText}>View Return</Text>
+                  </TouchableOpacity>
+                );
+              }
+              // Only show "Request Return" if no return exists yet
               return (
                 <TouchableOpacity
                   style={styles.actionBtnWarning}
-                  onPress={() => onViewReturn(existing.returnId)}
+                  onPress={() => onRequestReturn(order)}
                 >
-                  <Text style={styles.actionBtnWarningText}>View Return</Text>
+                  <Text style={styles.actionBtnWarningText}>Request Return</Text>
                 </TouchableOpacity>
               );
-            }
-            // Only show "Request Return" if no return exists yet
-            return (
-              <TouchableOpacity
-                style={styles.actionBtnWarning}
-                onPress={() => onRequestReturn(order)}
-              >
-                <Text style={styles.actionBtnWarningText}>Request Return</Text>
-              </TouchableOpacity>
-            );
-          })()
-        )}
-      </View>
+            })()
+          )}
+        </View>
+      )}
     </View>
   );
 };
@@ -1337,6 +1370,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 12,
     gap: 8,
+    alignItems: 'flex-start',
+  },
+  orderActionsCentered: {
+    flexDirection: 'column',
+    padding: 12,
+    gap: 8,
+    alignItems: 'center',
+  },
+  leftActionsColumn: {
+    flexDirection: 'column',
+    gap: 8,
+    flex: 0,
+  },
+  leftActionsColumnProcessing: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  orderActionsProcessing: {
+    justifyContent: 'center',
     alignItems: 'center',
   },
   actionBtnSecondary: {
@@ -1348,6 +1401,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginRight: 4,
+  },
+  actionBtnSecondaryFull: {
+    width: '100%',
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#A68C7B',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  actionBtnSecondaryProcessing: {
+    width: '100%',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    minHeight: 48,
   },
   actionBtnSmaller: {
     flex: 1,
@@ -1391,7 +1459,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   actionBtnSuccess: {
-    flex: 1.5,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1642,14 +1710,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   actionBtnWarning: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#A68C7B',
     paddingVertical: 12,
     borderRadius: 8,
-    marginLeft: 4,
   },
   actionBtnWarningText: {
     color: '#fff',
@@ -1662,9 +1729,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     paddingTop: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   primaryActionRow: {
     marginBottom: 8,
+    width: '100%',
   },
   actionBtnPrimaryExpanded: {
     flexDirection: 'row',
@@ -1672,14 +1742,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#A68C7B',
     paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
     gap: 6,
+    width: '100%',
   },
   secondaryActionRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     gap: 8,
     marginTop: 4,
+    width: '100%',
   },
   actionBtnInfoCompact: {
     flex: 1,
@@ -1705,7 +1778,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
     paddingVertical: 10,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     borderWidth: 1.5,
     borderColor: '#F44336',
     borderRadius: 8,
