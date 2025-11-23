@@ -168,6 +168,11 @@ export default function SellerDashboardScreen() {
   // Payment Method Modal state
   const [paymentMethodModalOpen, setPaymentMethodModalOpen] = useState(false);
 
+  // Payout History state
+  const [payoutHistoryOpen, setPayoutHistoryOpen] = useState(false);
+  const [payoutHistory, setPayoutHistory] = useState([]);
+  const [payoutHistoryLoading, setPayoutHistoryLoading] = useState(false);
+
   // Fetch payout balance
   const fetchPayoutBalance = async () => {
     try {
@@ -353,8 +358,9 @@ export default function SellerDashboardScreen() {
                   'Success',
                   `${result.message}\n\nAmount: ₱${result.data.amount}\nReference: ${result.data.reference}\nMethod: ${result.data.paymentMethod}`
                 );
-                // Refresh balances
+                // Refresh balances and history
                 fetchPayoutBalance();
+                fetchPayoutHistory();
                 fetchStats(selectedPeriod);
               } else {
                 Alert.alert('Error', result.error || 'Failed to process withdrawal');
@@ -367,6 +373,34 @@ export default function SellerDashboardScreen() {
         }
       ]
     );
+  };
+
+  // Fetch payout history
+  const fetchPayoutHistory = async () => {
+    try {
+      setPayoutHistoryLoading(true);
+      const { data } = await supabase.auth.getSession();
+      const at = data?.session?.access_token || '';
+      const rt = data?.session?.refresh_token || '';
+
+      const response = await fetch(`${API_BASE}/payouts/history?page=1&limit=10`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          Cookie: `access_token=${at}; refresh_token=${rt}`,
+          'Authorization': `Bearer ${at}`,
+        },
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setPayoutHistory(result.data?.payouts || []);
+      }
+    } catch (error) {
+      console.error('Error fetching payout history:', error);
+    } finally {
+      setPayoutHistoryLoading(false);
+    }
   };
 
 
@@ -1460,6 +1494,12 @@ const handleDeleteProduct = (product) => {
               stats={stats}
               onWithdraw={handleWithdraw}
               router={router}
+              onChangePaymentMethod={() => setPaymentMethodModalOpen(true)}
+              payoutHistoryOpen={payoutHistoryOpen}
+              setPayoutHistoryOpen={setPayoutHistoryOpen}
+              payoutHistory={payoutHistory}
+              payoutHistoryLoading={payoutHistoryLoading}
+              fetchPayoutHistory={fetchPayoutHistory}
             />
           )}
           {activeTab === 'products' && (
@@ -2304,24 +2344,50 @@ const OverviewTab = ({ stats, router, setActiveTab, statsCollapsed, setStatsColl
 );
 
 
-const PayoutsTab = ({ payoutBalance, paymentMethod, stats, onWithdraw, router }) => {
+const PayoutsTab = ({ 
+  payoutBalance, 
+  paymentMethod, 
+  stats, 
+  onWithdraw, 
+  router, 
+  onChangePaymentMethod,
+  payoutHistoryOpen,
+  setPayoutHistoryOpen,
+  payoutHistory,
+  payoutHistoryLoading,
+  fetchPayoutHistory
+}) => {
   return (
     <View style={styles.payoutsContainer}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Current Payment Method */}
-        {paymentMethod.method && (
-          <View style={styles.currentPaymentCard}>
+        <View style={styles.currentPaymentCard}>
+          <View style={styles.paymentMethodHeader}>
             <Text style={styles.currentPaymentLabel}>Payment Method</Text>
-            <View style={styles.currentPaymentContent}>
-              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              <Text style={styles.currentPaymentText}>
-                {paymentMethod.method === 'gcash' && `GCash (${maskPhoneNumber(paymentMethod.gcashNumber)})`}
-                {paymentMethod.method === 'maya' && `Maya (${maskPhoneNumber(paymentMethod.mayaNumber)})`}
-                {paymentMethod.method === 'bank' && `${paymentMethod.bankName} (${maskAccountNumber(paymentMethod.bankAccountNumber)})`}
+            <TouchableOpacity 
+              style={styles.changePaymentBtn}
+              onPress={onChangePaymentMethod}
+            >
+              <Text style={styles.changePaymentBtnText}>
+                {paymentMethod.method ? 'Change' : 'Set up'}
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
-        )}
+          <View style={styles.currentPaymentContent}>
+            {paymentMethod.method ? (
+              <>
+                <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                <Text style={styles.currentPaymentText}>
+                  {paymentMethod.method === 'gcash' && `GCash (${maskPhoneNumber(paymentMethod.gcashNumber)})`}
+                  {paymentMethod.method === 'maya' && `Maya (${maskPhoneNumber(paymentMethod.mayaNumber)})`}
+                  {paymentMethod.method === 'bank' && `${paymentMethod.bankName} (${maskAccountNumber(paymentMethod.bankAccountNumber)})`}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.noPaymentText}>No method selected</Text>
+            )}
+          </View>
+        </View>
 
         {/* Balance Card */}
         <View style={styles.balanceCard}>
@@ -2415,28 +2481,77 @@ const PayoutsTab = ({ payoutBalance, paymentMethod, stats, onWithdraw, router })
 
 
 
-        {/* Payout Stats */}
-
-        <View style={styles.payoutStatsCard}>
-
-          <Text style={styles.breakdownTitle}>Payout History</Text>
-
-          
-
-          <View style={styles.statRow}>
-
-            <View style={styles.statItem}>
-              <Ionicons name="wallet" size={24} color="#4CAF50" />
-              <Text style={styles.statValue}>₱{payoutBalance.totalPaidOut.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Total Paid Out</Text>
+        {/* Payout History - Collapsible */}
+        <View style={styles.payoutHistoryCard}>
+          <TouchableOpacity 
+            style={styles.historyHeader}
+            onPress={() => {
+              if (!payoutHistoryOpen) {
+                fetchPayoutHistory();
+              }
+              setPayoutHistoryOpen(!payoutHistoryOpen);
+            }}
+          >
+            <View style={styles.historyTitleContainer}>
+              <Ionicons name="receipt-outline" size={20} color="#A68C7B" style={{marginRight: 8}} />
+              <Text style={styles.historyTitle}>Payout History</Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Ionicons name="time" size={24} color="#FF9800" />
-              <Text style={styles.statValue}>₱{payoutBalance.pending.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>In Escrow</Text>
+            <Ionicons 
+              name={payoutHistoryOpen ? "chevron-up" : "chevron-down"} 
+              size={24} 
+              color="#A68C7B" 
+            />
+          </TouchableOpacity>
+
+          {payoutHistoryOpen && (
+            <View style={styles.historyContent}>
+              {payoutHistoryLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#A68C7B" />
+                </View>
+              ) : payoutHistory.length === 0 ? (
+                <View style={styles.emptyHistoryContainer}>
+                  <Ionicons name="document-outline" size={40} color="#ccc" />
+                  <Text style={styles.emptyHistoryText}>No payouts yet</Text>
+                </View>
+              ) : (
+                <View>
+                  {payoutHistory.map((payout, index) => (
+                    <View key={index} style={styles.historyItem}>
+                      <View style={styles.historyItemLeft}>
+                        <View style={styles.historyItemIcon}>
+                          <Ionicons name="cash-outline" size={18} color="#A68C7B" />
+                        </View>
+                        <View style={styles.historyItemInfo}>
+                          <Text style={styles.historyItemType}>
+                            {payout.payoutType || 'Standard Payout'}
+                          </Text>
+                          <Text style={styles.historyItemDate}>
+                            {new Date(payout.paidDate || payout.readyDate || payout.createdAt).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.historyItemRight}>
+                        <Text style={styles.historyItemAmount}>
+                          ₱{(payout.netAmount || payout.amount || 0).toLocaleString()}
+                        </Text>
+                        <View style={[
+                          styles.statusBadge,
+                          payout.status === 'completed' && styles.statusBadgeSuccess,
+                          payout.status === 'pending' && styles.statusBadgePending,
+                          payout.status === 'failed' && styles.statusBadgeFailed,
+                        ]}>
+                          <Text style={styles.statusBadgeText}>
+                            {payout.status?.charAt(0).toUpperCase() + payout.status?.slice(1)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
-          </View>
+          )}
         </View>
 
 
@@ -4580,13 +4695,29 @@ overviewPeriodTextActive: {
     borderLeftWidth: 4,
     borderLeftColor: '#4CAF50',
   },
+  paymentMethodHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   currentPaymentLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: '#666',
     textTransform: 'uppercase',
-    marginBottom: 8,
     letterSpacing: 0.5,
+  },
+  changePaymentBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#A68C7B',
+    borderRadius: 6,
+  },
+  changePaymentBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
   },
   currentPaymentContent: {
     flexDirection: 'row',
@@ -4598,6 +4729,11 @@ overviewPeriodTextActive: {
     fontSize: 14,
     fontWeight: '500',
     color: '#2E7D32',
+  },
+  noPaymentText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#999',
   },
   
   balanceCard: {
@@ -4775,10 +4911,9 @@ overviewPeriodTextActive: {
     color: '#A68C7B',
   },
   
-  payoutStatsCard: {
+  payoutHistoryCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -4787,21 +4922,119 @@ overviewPeriodTextActive: {
     elevation: 2,
   },
   
-  statRow: {
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  
+  historyTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  
+  historyContent: {
+    paddingHorizontal: 20,
     paddingVertical: 12,
   },
   
-  statDivider: {
-    width: 1,
-    height: 60,
-    backgroundColor: '#e8e8e8',
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
+  },
+  
+  historyItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  
+  historyItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF5EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  
+  historyItemInfo: {
+    flex: 1,
+  },
+  
+  historyItemType: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  
+  historyItemDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  
+  historyItemRight: {
+    alignItems: 'flex-end',
+    marginLeft: 12,
+  },
+  
+  historyItemAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginBottom: 4,
+  },
+  
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    backgroundColor: '#f0f0f0',
+  },
+  
+  statusBadgeSuccess: {
+    backgroundColor: '#E8F5E9',
+  },
+  
+  statusBadgePending: {
+    backgroundColor: '#FFF3E0',
+  },
+  
+  statusBadgeFailed: {
+    backgroundColor: '#FFEBEE',
+  },
+  
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+  },
+  
+  emptyHistoryContainer: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  
+  emptyHistoryText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 12,
   },
   
   infoCard: {

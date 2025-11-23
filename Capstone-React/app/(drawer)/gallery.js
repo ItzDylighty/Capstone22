@@ -80,13 +80,16 @@ const GalleryScreen = () => {
         // Curated Collection: Featured artworks first, then remaining artworks
         const featured = data.artworks.filter(art => art.featured === true);
         const nonFeatured = data.artworks.filter(art => art.featured !== true);
-        setCuratedArtworks(featured.length > 0 ? [...featured, ...nonFeatured] : data.artworks);
+        const curatedCollection = featured.length > 0 ? [...featured, ...nonFeatured] : data.artworks;
+        // Apply preference sorting to curated collection
+        setCuratedArtworks(sortArtworksByPreference(curatedCollection));
         
         // Recently Added: Latest artworks (using datePosted from controller)
         const sorted = [...data.artworks].sort((a, b) => 
           new Date(b.datePosted || 0) - new Date(a.datePosted || 0)
         );
-        setRecentlyAdded(sorted);
+        // Apply preference sorting to recently added
+        setRecentlyAdded(sortArtworksByPreference(sorted));
         
         // Store total count
         setTotalArtworks(data.totalCount || data.artworks.length);
@@ -114,6 +117,90 @@ const GalleryScreen = () => {
     } catch (error) {
       console.error('Error fetching user preferences:', error);
     }
+  };
+
+  // Sort artworks based on user preferences (matches web version logic)
+  const sortArtworksByPreference = (artworksToSort) => {
+    if (!userPreferences || userPreferences.length === 0 || !artworksToSort.length) {
+      return artworksToSort;
+    }
+
+    // Map database preference fields to category names
+    const preferenceMapping = {
+      'classicalArt': 'Classical Art',
+      'abstractArt': 'Abstract Art',
+      'digitalArt': 'Digital Art',
+      'surrealist': 'Surrealist',
+      'contemporaryArt': 'Contemporary Art',
+      'sculpture': 'Sculpture',
+      'streetArt': 'Street Art',
+      'landscape': 'Landscape',
+      'impressionist': 'Impressionist',
+      'photography': 'Photography',
+      'minimalist': 'Minimalist',
+      'portrait': 'Portrait',
+      'miniature': 'Miniature',
+      'expressionist': 'Expressionist',
+      'realism': 'Realism',
+      'conceptual': 'Conceptual'
+    };
+
+    // Get user's preferred categories (check both key and value)
+    const preferredCategories = Object.keys(preferenceMapping)
+      .filter(key => userPreferences.includes(key) || userPreferences.includes(preferenceMapping[key]))
+      .map(key => preferenceMapping[key]);
+
+    if (preferredCategories.length === 0) {
+      return artworksToSort;
+    }
+
+    // Separate preferred and non-preferred artworks
+    const preferredArtworks = artworksToSort.filter(artwork => {
+      // Handle multiple categories (array)
+      if (Array.isArray(artwork.categories)) {
+        return artwork.categories.some(cat => preferredCategories.includes(cat));
+      }
+      // Handle single category (string)
+      if (typeof artwork.category === 'string') {
+        return preferredCategories.includes(artwork.category);
+      }
+      return false;
+    });
+
+    const nonPreferredArtworks = artworksToSort.filter(artwork => {
+      // Handle multiple categories (array)
+      if (Array.isArray(artwork.categories)) {
+        return !artwork.categories.some(cat => preferredCategories.includes(cat));
+      }
+      // Handle single category (string)
+      if (typeof artwork.category === 'string') {
+        return !preferredCategories.includes(artwork.category);
+      }
+      return true;
+    });
+
+    // Mobile uses 2-column grid (itemsPerPage = 6 = 3 rows × 2 columns)
+    // Arrange preferred artworks first to fill complete rows
+    const columnsPerRow = 2;
+    const arrangedArtworks = [];
+
+    // Calculate how many complete rows of preferred artworks we can make
+    const preferredRows = Math.ceil(preferredArtworks.length / columnsPerRow);
+    
+    // Fill rows with preferred artworks first
+    for (let row = 0; row < preferredRows; row++) {
+      const rowStart = row * columnsPerRow;
+      const rowEnd = Math.min(rowStart + columnsPerRow, preferredArtworks.length);
+      
+      for (let col = rowStart; col < rowEnd; col++) {
+        arrangedArtworks.push(preferredArtworks[col]);
+      }
+    }
+
+    // Then add non-preferred artworks
+    arrangedArtworks.push(...nonPreferredArtworks);
+
+    return arrangedArtworks;
   };
 
   // Role now comes from UserContext - no need to fetch separately
