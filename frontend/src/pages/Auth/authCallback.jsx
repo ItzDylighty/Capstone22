@@ -34,9 +34,9 @@ export default function AuthCallback() {
         return;
       }
 
-      // ✅ Session stored successfully
+      // Session stored successfully
       // Note: ProtectedRoutes will populate UserContext automatically
-      console.log("✅ OAuth Callback: Session stored, navigating to home...");
+      console.log("OAuth Callback: Session stored, navigating to home...");
       
       localStorage.removeItem('sb-ddkkbtijqrgpitncxylx-auth-token');
       navigate("/home");

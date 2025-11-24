@@ -11,7 +11,7 @@ import { supabase } from "../../supabase/supabaseClient";
 import { useUser } from "../contexts/UserContext";
 import ViewArtistModal from "../components/ViewArtistModal";
 import AndroidFooterSpacer from '../components/Footer';
-const API_BASE = "http://192.168.18.79:3000/api";
+const API_BASE = "http://192.168.254.114:3000/api";
 const API_ORIGIN = API_BASE.replace(/\/api$/, "");
 
 export default function ProfileScreen() {

@@ -126,7 +126,7 @@ const HomeScreen = () => {
   };
 
   const router = useRouter();
-  const API_BASE = "http://192.168.18.79:3000/api";
+  const API_BASE = "http://192.168.254.114:3000/api";
 
   // Helper: coerce various shapes into a valid uri string
   const ensureUri = (value) => {

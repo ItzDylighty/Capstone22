@@ -14,7 +14,7 @@ import EditPriceScheduleAuction from '../components/EditPriceScheduleAuction';
 import AuctionOptionModal from '../components/AuctionOptionModal.js';
 import AndroidFooterSpacer from '../components/Footer';
 import PaymentMethodModal from '../components/PaymentMethodModal';
-const API_BASE = "http://192.168.18.79:3000/api";
+const API_BASE = "http://192.168.254.114:3000/api";
 
 // Helper functions for masking payment details
 const maskPhoneNumber = (phone) => {
@@ -174,7 +174,7 @@ export default function SellerDashboardScreen() {
   const [payoutHistoryLoading, setPayoutHistoryLoading] = useState(false);
 
   // Fetch payout balance
-  const fetchPayoutBalance = async () => {
+  const fetchPayoutBalance = useCallback(async () => {
     try {
       const { data } = await supabase.auth.getSession();
       const at = data?.session?.access_token || '';
@@ -205,12 +205,12 @@ export default function SellerDashboardScreen() {
 
     }
 
-  };
+  }, []);
 
 
 
   // Fetch payment method
-  const fetchPaymentMethod = async () => {
+  const fetchPaymentMethod = useCallback(async () => {
     try {
       const { data } = await supabase.auth.getSession();
       const at = data?.session?.access_token || '';
@@ -239,7 +239,7 @@ export default function SellerDashboardScreen() {
     } catch (error) {
       console.error('Error fetching payment method:', error);
     }
-  };
+  }, []);
 
   // Toggle shipping preference
   const togglePref = (courier, service) => {
@@ -376,7 +376,7 @@ export default function SellerDashboardScreen() {
   };
 
   // Fetch payout history
-  const fetchPayoutHistory = async () => {
+  const fetchPayoutHistory = useCallback(async () => {
     try {
       setPayoutHistoryLoading(true);
       const { data } = await supabase.auth.getSession();
@@ -401,12 +401,12 @@ export default function SellerDashboardScreen() {
     } finally {
       setPayoutHistoryLoading(false);
     }
-  };
+  }, []);
 
 
 
   // Fetch stats
-  const fetchStats = async (period = 'weekly') => {
+  const fetchStats = useCallback(async (period = 'weekly') => {
     try {
       setStatsLoading(true);
       const { data } = await supabase.auth.getSession();
@@ -431,9 +431,9 @@ export default function SellerDashboardScreen() {
     } finally {
       setStatsLoading(false);
     }
-  };
+  }, [stats]);
   // Fetch products
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setProductsLoading(true);
       const { data } = await supabase.auth.getSession();
@@ -456,7 +456,7 @@ export default function SellerDashboardScreen() {
     } finally {
       setProductsLoading(false);
     }
-  };
+  }, []);
 
 
   // Fetch auction items owned by seller (mirrors web dashboard)
@@ -1794,7 +1794,8 @@ const handleDeleteProduct = (product) => {
                     <Text style={styles.tipText}>• Pack items securely to prevent damage</Text>
                     <Text style={styles.tipText}>• Include invoice and packing slip</Text>
                     <Text style={styles.tipText}>• Use tracking service for valuable items</Text>
-                    <Text style={styles.tipText}>• Update buyer with tracking information</Text>                  </View>
+                    <Text style={styles.tipText}>• Update buyer with tracking information</Text>
+                  </View>
                   {/* Submit Button */}
 
                   <TouchableOpacity 

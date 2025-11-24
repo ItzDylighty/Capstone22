@@ -2,7 +2,7 @@ import { io } from "socket.io-client";
 
 // Socket.IO base URL - matches your backend server
 // Update this to match your backend URL
-const API_BASE = "http://192.168.18.79:3000"; // Same as your current API
+const API_BASE = "http://192.168.254.114:3000"; // Same as your current API
 
 export const SOCKET_BASE = API_BASE;
 

@@ -9,7 +9,7 @@ import Header from '../components/Header';
 import { useUser } from '../contexts/UserContext';
 import AndroidFooterSpacer from '../components/Footer';
 
-const API_BASE = "http://192.168.18.79:3000/api";
+const API_BASE = "http://192.168.254.114:3000/api";
 const API_ORIGIN = API_BASE.replace(/\/api$/, "");
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
